@@ -1,0 +1,22 @@
+#
+# docker-compose file for this service.
+# To be merged into a larger service definition YAML file.
+# Environment variables will override appsettings.json values.
+version: '3.7'
+
+services:
+  rebus-requester:
+    image: rebus-requester:latest
+    environment:
+      - ConnectionStrings__RabbitMq=amqp://zyuser:password@rabbitmq
+
+  rebus-responder:
+    image: rebus-responder:latest 
+    environment:
+      - ConnectionStrings__RabbitMq=amqp://zyuser:password@rabbitmq
+
+  rabbitmq:
+    image: rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=zyuser
+      - RABBITMQ_DEFAULT_PASS=password
