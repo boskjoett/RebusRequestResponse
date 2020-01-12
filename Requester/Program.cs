@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Polly;
+using Rebus;
 using Rebus.Activation;
 using Rebus.Bus;
 using Rebus.Config;
@@ -30,6 +31,15 @@ namespace Requester
 
             Configuration = LoadConfiguration();
 
+            //ExampleWithoutRebusAsync().Wait();
+            ExampleUsingRebusAsync().Wait();
+
+            _bus.Dispose();
+            _activator.Dispose();
+        }
+
+        private static async Task ExampleWithoutRebusAsync()
+        {
             _activator = new BuiltinHandlerActivator();
 
             string rabbitMqConnectionString = Configuration.GetConnectionString("RabbitMq");
@@ -46,27 +56,53 @@ namespace Requester
             });
 
             // Subscribe to messages we want to handle
-            // - None
+            _bus.Subscribe<UserLoginResponse>().Wait();
+            _bus.Subscribe<ServiceConfigurationResponse>().Wait();
 
             while (true)
             {
+                Thread.Sleep(4000);
+
                 Guid requestId = Guid.NewGuid();
                 Console.WriteLine($"Publishing UserLoginRequest. Request ID: {requestId}");
-
-                _bus.Publish(new UserLoginRequest(requestId, InputQueueName, "bcs@zylinc.com", "dsfifigfdg"), RebusConfiguration.Headers).Wait();
+                await _bus.Publish(new UserLoginRequest(requestId, InputQueueName, "bcs@zylinc.com", "dsfifigfdg"), RebusConfiguration.Headers);
 
                 Thread.Sleep(4000);
 
                 requestId = Guid.NewGuid();
                 Console.WriteLine($"Publishing ServiceConfigurationRequest. Request ID: {requestId}");
-
                 ServiceConfigurationBundle[] serviceConfigurationBundles = new ServiceConfigurationBundle[] { new ServiceConfigurationBundle("MyService", "Bundle1") };
-                _bus.Publish(new ServiceConfigurationRequest(requestId, InputQueueName, serviceConfigurationBundles), RebusConfiguration.Headers).Wait();
-                Thread.Sleep(4000);
+                await _bus.Publish(new ServiceConfigurationRequest(requestId, InputQueueName, serviceConfigurationBundles), RebusConfiguration.Headers);
             }
+        }
 
-            _bus.Dispose();
-            _activator.Dispose();
+
+        private static async Task ExampleUsingRebusAsync()
+        {
+            _activator = new BuiltinHandlerActivator();
+
+            string rabbitMqConnectionString = Configuration.GetConnectionString("RabbitMq");
+            ConnectToRebus(rabbitMqConnectionString, _activator);
+
+            Thread.Sleep(10000);
+
+            while (true)
+            {
+                Thread.Sleep(4000);
+
+                Guid requestId = Guid.NewGuid();
+                Console.WriteLine($"Sending UserLoginRequest request. Request ID: {requestId}");
+                UserLoginResponse userLoginResponse = await _bus.SendRequest<UserLoginResponse>(new UserLoginRequest(requestId, InputQueueName, "bcs@zylinc.com", "dsfifigfdg"), RebusConfiguration.Headers, TimeSpan.FromSeconds(10));
+                Console.WriteLine($"UserLoginResponse received. Request ID: {userLoginResponse.RequestMessageId}, Email: {userLoginResponse.Email}, ResultCode: {userLoginResponse.ResultCode}");
+
+                Thread.Sleep(4000);
+
+                requestId = Guid.NewGuid();
+                Console.WriteLine($"Sending ServiceConfigurationRequest request. Request ID: {requestId}");
+                ServiceConfigurationBundle[] serviceConfigurationBundles = new ServiceConfigurationBundle[] { new ServiceConfigurationBundle("MyService", "Bundle1") };
+                ServiceConfigurationResponse serviceConfigurationResponse = await _bus.SendRequest<ServiceConfigurationResponse>(new ServiceConfigurationRequest(requestId, InputQueueName, serviceConfigurationBundles), RebusConfiguration.Headers, TimeSpan.FromSeconds(10));
+                Console.WriteLine($"ServiceConfigurationResponse received. Request ID: {serviceConfigurationResponse.RequestMessageId}");
+            }
         }
 
         private static async Task HandleUserLoginResponse(UserLoginResponse msg)
@@ -103,11 +139,15 @@ namespace Requester
             {
                 // Action to perform on each retry
                 _bus = Configure.With(activator)
-                    .Logging(l => l.Console(LogLevel.Info))
+                    .Logging(l => l.Console(LogLevel.Debug))
                     .Transport(t => t.UseRabbitMq(rabbitMqConnectionString, InputQueueName))
+                    .Options(o => { 
+                        o.EnableSynchronousRequestReply();
+                        // o.SetNumberOfWorkers(2);
+                    })
                     .Routing(r => r.TypeBased()
-                        .Map<UserLoginResponse>(InputQueueName)
-                        .Map<ServiceConfigurationResponse>(InputQueueName))
+                        .Map<UserLoginRequest>(InputQueueName)
+                        .Map<ServiceConfigurationRequest>(InputQueueName))
                     .Start();
             });
 
