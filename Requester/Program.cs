@@ -84,7 +84,9 @@ namespace Requester
             string rabbitMqConnectionString = Configuration.GetConnectionString("RabbitMq");
             ConnectToRebus(rabbitMqConnectionString, _activator);
 
-            Thread.Sleep(10000);
+            // Subscribe to messages we want to handle
+            _bus.Subscribe<UserLoginResponse>().Wait();
+            _bus.Subscribe<ServiceConfigurationResponse>().Wait();
 
             while (true)
             {
@@ -146,8 +148,8 @@ namespace Requester
                         // o.SetNumberOfWorkers(2);
                     })
                     .Routing(r => r.TypeBased()
-                        .Map<UserLoginRequest>(InputQueueName)
-                        .Map<ServiceConfigurationRequest>(InputQueueName))
+                        .Map<UserLoginResponse>(InputQueueName)
+                        .Map<ServiceConfigurationResponse>(InputQueueName))
                     .Start();
             });
 

@@ -106,8 +106,8 @@ namespace Responder
                     .Logging(l => l.Console(LogLevel.Info))
                     .Transport(t => t.UseRabbitMq(rabbitMqConnectionString, InputQueueName))
                     .Routing(r => r.TypeBased()
-                        .Map<UserLoginResponse>(InputQueueName)
-                        .Map<ServiceConfigurationResponse>(InputQueueName))
+                        .Map<UserLoginRequest>(InputQueueName)
+                        .Map<ServiceConfigurationRequest>(InputQueueName))
                     .Start();
             });
 
