@@ -143,13 +143,11 @@ namespace Requester
                 _bus = Configure.With(activator)
                     .Logging(l => l.Console(LogLevel.Debug))
                     .Transport(t => t.UseRabbitMq(rabbitMqConnectionString, InputQueueName))
-                    .Options(o => { 
-                        o.EnableSynchronousRequestReply();
-                        // o.SetNumberOfWorkers(2);
-                    })
+                    .Options(o => o.EnableSynchronousRequestReply())
                     .Routing(r => r.TypeBased()
-                        .Map<UserLoginResponse>(InputQueueName)
-                        .Map<ServiceConfigurationResponse>(InputQueueName))
+                        // NOTE: Request messages must be mapped to the input queue name of the responding service.
+                        .Map<UserLoginRequest>("RebusResponderApplication")
+                        .Map<ServiceConfigurationRequest>("RebusResponderApplication"))
                     .Start();
             });
 

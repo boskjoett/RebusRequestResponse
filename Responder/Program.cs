@@ -69,7 +69,7 @@ namespace Responder
         {
             Console.WriteLine($"UserLoginRequest received. Request ID: {msg.RequestMessageId}, Email: {msg.Email}");
 
-            Console.WriteLine("Replying to UserLoginResponse");
+            Console.WriteLine("Replying with UserLoginResponse");
             await _bus.Reply(new UserLoginResponse(msg.RequestMessageId, LoginResultCode.LoginGranted, "user1", "bcs@zylinc.com", "Bo", "S"), RebusConfiguration.Headers);
         }
 
@@ -77,7 +77,7 @@ namespace Responder
         {
             Console.WriteLine($"ServiceConfigurationRequest received. Request ID: {msg.RequestMessageId}");
 
-            Console.WriteLine("Replying to ServiceConfigurationResponse");
+            Console.WriteLine("Replying with ServiceConfigurationResponse");
             await _bus.Reply(new ServiceConfigurationResponse(msg.RequestMessageId, new ServiceConfigurationResponseData[0]), RebusConfiguration.Headers);
         }
 
@@ -106,8 +106,8 @@ namespace Responder
                     .Logging(l => l.Console(LogLevel.Info))
                     .Transport(t => t.UseRabbitMq(rabbitMqConnectionString, InputQueueName))
                     .Routing(r => r.TypeBased()
-                        .Map<UserLoginRequest>(InputQueueName)
-                        .Map<ServiceConfigurationRequest>(InputQueueName))
+                        .Map<UserLoginResponse>(InputQueueName)
+                        .Map<ServiceConfigurationResponse>(InputQueueName))
                     .Start();
             });
 
